@@ -45,10 +45,10 @@ cat > package/fyta/driver.json << 'EOF'
     "de": "Überwache deine FYTA Pflanzensensoren"
   },
   "developer": {
-    "name": "Alexander Schäfer",
+    "name": "Alexander",
     "url": "https://github.com/Schalex01/uc-integration-fyta"
   },
-  "home_page": "https://fyta.io/",
+  "home_page": "https://fyta.de/",
   "release_date": "2024-03-13",
   "setup_data_schema": {
     "title": {
@@ -130,11 +130,3 @@ echo "To install on your Remote Two:"
 echo "1. Enable Developer Mode in Settings > System > Developer Options"
 echo "2. Go to Settings > Integrations > Install Custom Integration"
 echo "3. Upload the generated package/fyta-integration.tar.gz file"
-
-# If Docker simulator is available, copy to upload directory
-DOCKER_UPLOAD_DIR="/Users/alex/GIT/FYTA_Circle_API/HomeassistentFYTA/core-simulator/core-simulator/docker/upload"
-if [ -d "$DOCKER_UPLOAD_DIR" ]; then
-  echo "Copying package to Docker upload directory..."
-  cp package/fyta-integration.tar.gz "$DOCKER_UPLOAD_DIR/"
-  echo "Package copied to Docker upload directory at $DOCKER_UPLOAD_DIR"
-fi 
