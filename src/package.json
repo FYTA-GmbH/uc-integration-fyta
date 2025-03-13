@@ -1,0 +1,28 @@
+{
+  "name": "uc-integration-fyta",
+  "version": "0.1.0",
+  "description": "FYTA Plant Monitor integration for Unfolded Circle Remote Two",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "fyta",
+    "plant",
+    "sensor",
+    "unfolded-circle",
+    "remote-two",
+    "integration"
+  ],
+  "author": "Alexander Schäfer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Schalex01/uc-integration-fyta"
+  },
+  "dependencies": {
+    "@unfoldedcircle/integration-api": "^0.3.0",
+    "axios": "^1.8.3"
+  }
+}
