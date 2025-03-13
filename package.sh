@@ -1,39 +1,32 @@
 #!/bin/bash
 # Script to package the FYTA integration for Unfolded Circle Remote Two
 # Following the official documentation: https://github.com/unfoldedcircle/core-api/blob/main/doc/integration-driver/driver-installation.md
+# and the Roon integration's build workflow
 
 # Create package directory
 echo "Creating package directory..."
 rm -rf package
-mkdir -p package/fyta/bin
-mkdir -p package/fyta/config
-mkdir -p package/fyta/data
+mkdir -p package/bin
+mkdir -p package/config
+mkdir -p package/data
 
 # Copy Node.js files to bin directory
 echo "Copying files..."
-cp -r src/node_modules package/fyta/bin/
-cp src/*.js package/fyta/bin/
-
-# Create driver.js entry point in bin directory
-echo "Creating driver.js entry point..."
-cat > package/fyta/bin/driver.js << 'EOF'
-#!/usr/bin/env node
-
-// FYTA Plant Monitor integration for Unfolded Circle Remote Two
-import * as api from '@unfoldedcircle/integration-api';
-import './index.js';
-
-console.log('FYTA Plant Monitor integration started');
-EOF
+cp -r src/node_modules package/bin/
+cp src/*.js package/bin/
 
 # Make the driver.js file executable
-chmod +x package/fyta/bin/driver.js
+echo "Setting file permissions..."
+chmod 755 package/bin/driver.js
+find package/bin -type f -exec chmod 644 {} \;
+find package/bin -type d -exec chmod 755 {} \;
+chmod 755 package/bin/driver.js
 
 # Create driver.json in the root directory
 echo "Creating driver.json file..."
-cat > package/fyta/driver.json << 'EOF'
+cat > package/driver.json << 'EOF'
 {
-  "driver_id": "fyta",
+  "driver_id": "fyta_plant_monitor",
   "version": "0.1.0",
   "min_core_api": "0.20.0",
   "name": {
@@ -67,9 +60,6 @@ cat > package/fyta/driver.json << 'EOF'
         "type": "string",
         "title": {
           "en": "Email"
-        },
-        "description": {
-          "en": "Your FYTA account email"
         }
       },
       "password": {
@@ -77,31 +67,23 @@ cat > package/fyta/driver.json << 'EOF'
         "format": "password",
         "title": {
           "en": "Password"
-        },
-        "description": {
-          "en": "Your FYTA account password"
         }
       },
       "poll_interval": {
-        "type": "number",
+        "type": "integer",
         "title": {
-          "en": "Update interval"
+          "en": "Update Interval (seconds)"
         },
-        "description": {
-          "en": "Interval in seconds to update sensor data"
-        },
-        "default": 300,
-        "minimum": 60,
-        "maximum": 3600
+        "default": 300
       }
     }
   }
 }
 EOF
 
-# Create package.json in bin directory
-echo "Creating package.json file..."
-cat > package/fyta/bin/package.json << 'EOF'
+# Copy package.json to bin directory
+echo "Copying package.json to bin directory..."
+cat > package/bin/package.json << 'EOF'
 {
   "name": "fyta-integration",
   "version": "0.1.0",
@@ -118,10 +100,10 @@ cat > package/fyta/bin/package.json << 'EOF'
 }
 EOF
 
-# Create package archive
+# Create package archive with explicit permissions
 echo "Creating package archive..."
 cd package
-tar -czf fyta-integration.tar.gz fyta
+tar --no-same-owner --no-same-permissions -czf fyta-integration.tar.gz .
 cd ..
 
 echo "Package created at package/fyta-integration.tar.gz"
@@ -130,3 +112,11 @@ echo "To install on your Remote Two:"
 echo "1. Enable Developer Mode in Settings > System > Developer Options"
 echo "2. Go to Settings > Integrations > Install Custom Integration"
 echo "3. Upload the generated package/fyta-integration.tar.gz file"
+
+# If Docker simulator is available, copy to upload directory
+DOCKER_UPLOAD_DIR="/Users/alex/GIT/FYTA_Circle_API/HomeassistentFYTA/core-simulator/core-simulator/docker/upload"
+if [ -d "$DOCKER_UPLOAD_DIR" ]; then
+  echo "Copying package to Docker upload directory..."
+  cp package/fyta-integration.tar.gz "$DOCKER_UPLOAD_DIR/"
+  echo "Package copied to Docker upload directory at $DOCKER_UPLOAD_DIR"
+fi

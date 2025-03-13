@@ -2,23 +2,19 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.18.0-brightgreen)
-![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow)
+![Status: Alpha](https://img.shields.io/badge/status-alpha-red)
 
 A Node.js integration for connecting FYTA plant sensors to the Unfolded Circle Remote Two smart home controller.
 
-## ⚠️ Work in Progress ⚠️
+## 🚀 Upload Working, Configuration In Progress
 
-**This integration is currently under development and not yet functional.** I'm sharing this code to collaborate with the community on resolving the current issues.
+**This integration can now be successfully uploaded to the Remote Two device!** However, there are still important issues to resolve:
 
-### Current Challenges:
+### Current Status:
 
-1. **Package Upload Issues**: The integration package is being rejected by the Remote Two simulator with a "Binary directory not found" error. I've tried multiple package structures but haven't found a solution yet.
-
-2. **Untested API Integration**: The FYTA API client implementation is based on my understanding of their API but hasn't been fully tested. The authentication flow and data retrieval need verification.
-
-3. **Integration Structure**: I'm still working on the correct structure for Node.js integrations with the Remote Two platform.
-
-If you have experience with Remote Two integrations or the FYTA API, I'd appreciate your input!
+1. ✅ **Package Upload Fixed**: The integration package now uploads successfully to the Remote Two.
+2. ❌ **Configuration Interface**: The setup interface appears but doesn't properly display or process FYTA credentials.
+3. ❌ **API Integration**: The FYTA API client implementation needs testing and fixing with real credentials.
 
 ## Overview
 
@@ -35,7 +31,7 @@ This integration aims to allow you to monitor your FYTA plant sensors directly f
 - Automatic sensor discovery
 - Configurable update intervals
 
-## Installation (Not Yet Working)
+## Installation (Upload Only)
 
 ### Prerequisites
 
@@ -44,7 +40,12 @@ This integration aims to allow you to monitor your FYTA plant sensors directly f
 
 ### Installation Steps
 
-1. Package the integration:
+1. Download the pre-built package from the `package` directory:
+   - Use the `fyta-integration.tar.gz` file directly
+
+   OR
+
+   Build the package yourself:
    ```bash
    ./package.sh
    ```
@@ -52,9 +53,9 @@ This integration aims to allow you to monitor your FYTA plant sensors directly f
 2. Install on your Remote Two:
    - Enable Developer Mode in Settings > System > Developer Options
    - Go to Settings > Integrations > Install Custom Integration
-   - Upload the generated `package/fyta-integration.tar.gz` file
-
-   **Note**: Currently, the upload process fails with a "Binary directory not found" error.
+   - Upload the `fyta-integration.tar.gz` file
+   
+   **Note**: While the package uploads successfully, the configuration interface doesn't work properly yet, and the integration cannot connect to FYTA at this time.
 
 ## Development
 
@@ -74,8 +75,9 @@ This integration aims to allow you to monitor your FYTA plant sensors directly f
 ### Project Structure
 
 - `src/index.js` - Main integration driver
-- `src/fyta-api.js` - FYTA API client (untested)
+- `src/fyta-api.js` - FYTA API client
 - `src/entity-manager.js` - Entity management for Remote Two
+- `src/driver.js` - Entry point for the integration
 - `src/driver.json` - Integration metadata
 
 ### Environment Variables
@@ -89,9 +91,9 @@ The integration supports the following environment variables:
 
 ## Known Issues
 
-- **Package Upload Failure**: The integration package is rejected by the Remote Two simulator with a "Binary directory not found" error.
-- **FYTA API Authentication**: The authentication flow with FYTA credentials has not been tested yet.
-- **Entity Creation**: The entity creation and management need testing with actual device data.
+- **Configuration Interface**: The setup interface appears but doesn't properly display or process input fields.
+- **FYTA API Authentication**: The authentication flow with FYTA credentials doesn't work yet.
+- **Entity Creation**: The entity creation and management need implementation and testing with actual device data.
 
 ## Contributing
 

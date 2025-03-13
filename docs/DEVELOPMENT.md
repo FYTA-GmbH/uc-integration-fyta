@@ -2,15 +2,17 @@
 
 This document provides additional information for developers who want to contribute to or modify the FYTA integration for Unfolded Circle Remote Two.
 
-## ⚠️ Current Development Status ⚠️
+## 🚀 Current Development Status
 
-This integration is currently **not working** due to several challenges:
+This integration is **partially working** with the following status:
 
-1. **Package Structure Issues**: The Remote Two simulator rejects the integration package with a "Binary directory not found" error. Despite following the documented structure, the upload fails.
+1. ✅ **Package Upload Fixed**: The Remote Two simulator now accepts the integration package. The correct structure has been implemented following the Roon integration example.
 
-2. **FYTA API Integration**: The API client is implemented based on documentation and analysis but hasn't been fully tested with real credentials.
+2. ❌ **Configuration Interface**: The setup interface appears but doesn't properly display or process FYTA credentials.
 
-3. **Node.js Integration Structure**: There seems to be specific requirements for Node.js integrations that aren't fully documented.
+3. ❌ **FYTA API Integration**: The API client is implemented but doesn't work yet with real credentials.
+
+4. ✅ **Node.js Integration Structure**: The structure for Node.js integrations has been properly implemented following the Roon integration example.
 
 ## Architecture
 
@@ -19,18 +21,18 @@ The integration is built using Node.js and consists of three main components:
 1. **FYTA API Client** (`src/fyta-api.js`): Handles authentication and communication with the FYTA API.
    - Currently implements login with email/password to obtain an authentication token
    - Methods for retrieving plants, sensors, and sensor data
-   - **Note**: This has not been tested with actual FYTA credentials
+   - **Note**: This doesn't work yet with actual FYTA credentials
 
 2. **Entity Manager** (`src/entity-manager.js`): Manages the creation and updating of entities in the Remote Two system.
    - Creates sensor entities for each measurement type
    - Updates entity states based on sensor data
-   - **Note**: This needs testing with the actual Remote Two system
+   - **Note**: This needs implementation and testing with the actual Remote Two system
 
-3. **Integration Driver** (`src/index.js`): Implements the WebSocket server and integration lifecycle.
+3. **Integration Driver** (`src/index.js` and `src/driver.js`): Implements the WebSocket server and integration lifecycle.
    - Handles setup flow for user credentials
    - Manages connection to the Remote Two
    - Schedules regular updates of sensor data
-   - **Note**: This needs testing with the actual Remote Two system
+   - **Note**: The setup flow doesn't work properly yet
 
 ## Development Environment
 
@@ -58,7 +60,7 @@ The integration is built using Node.js and consists of three main components:
    node src/index.js
    ```
 
-### Testing with Remote Two Simulator (Currently Not Working)
+### Testing with Remote Two Simulator (Upload Working)
 
 1. Package the integration:
    ```bash
@@ -70,15 +72,16 @@ The integration is built using Node.js and consists of three main components:
    - Go to Settings > Integrations > Install Custom Integration
    - Upload the `package/fyta-integration.tar.gz` file
 
-   **Note**: Currently, this step fails with a "Binary directory not found" error.
+   **Note**: The package uploads successfully, but the configuration interface doesn't work properly yet.
 
 ## Package Structure
 
-The integration package should follow this structure to be accepted by the Remote Two:
+The integration package now follows this structure, which is accepted by the Remote Two:
 
 ```
-fyta/
+/
 ├── bin/
+│   ├── driver.js (executable)
 │   ├── index.js
 │   ├── fyta-api.js
 │   ├── entity-manager.js
@@ -89,32 +92,53 @@ fyta/
 └── driver.json
 ```
 
-However, despite following this structure, the package is still rejected by the Remote Two simulator.
+This structure was developed based on the Roon integration example and successfully uploads to the Remote Two.
 
-## Attempted Solutions
+## Successful Solutions
 
-I've tried several approaches to resolve the package upload issue:
+The following approaches have resolved the package upload issues:
 
-1. Different package structures:
-   - All files in the root directory
-   - Node.js files in the bin directory
-   - Creating a native-like structure with a shell script as the binary
+1. **Correct Package Structure**:
+   - Using the root directory for driver.json
+   - Placing all Node.js files in the bin directory
+   - Making driver.js executable with proper permissions
 
-2. Different packaging methods:
-   - Using npm to install dependencies
-   - Including pre-installed node_modules
-   - Creating empty config and data directories
+2. **Packaging Method**:
+   - Using a clean tar command with proper permissions
+   - Including empty config and data directories
 
-None of these approaches have resolved the "Binary directory not found" error.
+## Remaining Issues
 
-## Help Needed
+The following issues still need to be resolved:
 
-If you have experience with Remote Two integrations, especially with Node.js, I would appreciate help with:
+1. **Configuration Interface**:
+   - The setup interface appears but doesn't properly display input fields
+   - The form doesn't process user input correctly
+   - Need to investigate the correct setup_data_schema format
 
-1. The correct package structure for Node.js integrations
-2. Resolving the "Binary directory not found" error
-3. Testing the FYTA API client with actual credentials
-4. Any other insights into developing integrations for the Remote Two
+2. **FYTA API Integration**:
+   - The authentication flow doesn't work yet
+   - Need to verify API endpoints and data formats
+   - Implement proper error handling
+
+## Next Steps
+
+The following areas need further development:
+
+1. **Fix Configuration Interface**:
+   - Investigate Remote Two setup form requirements
+   - Update driver.json setup_data_schema
+   - Test with different schema formats
+
+2. **Fix FYTA API Client**:
+   - Verify API endpoints and authentication flow
+   - Test with real credentials
+   - Implement proper error handling
+
+3. **Implement Entity Creation**:
+   - Create proper entity definitions
+   - Test with actual device data
+   - Implement state updates
 
 ## Contributing
 

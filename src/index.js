@@ -14,7 +14,9 @@ let subscribedEntities = new Set();
 const driver = new api.IntegrationAPI();
 
 // Initialize the driver with the driver.json file
+console.log('Initializing FYTA integration driver...');
 driver.init("./driver.json");
+console.log('Driver initialized');
 
 // Handle connection events
 driver.on(api.Events.Connect, async () => {
@@ -29,14 +31,23 @@ driver.on(api.Events.Disconnect, async () => {
 
 // Handle driver setup
 driver.on(api.Events.DriverSetup, async (setupData) => {
-  console.log('Setting up FYTA integration...');
+  console.log('Setting up FYTA integration with data:', JSON.stringify(setupData));
   
   try {
     const username = setupData.username;
     const password = setupData.password;
     
+    if (!username || !password) {
+      console.error('Username and password are required but not provided');
+      driver.driverSetupError('Username and password are required');
+      return;
+    }
+    
+    console.log(`Attempting login with username: ${username}`);
+    
     if (setupData.poll_interval) {
       pollInterval = setupData.poll_interval;
+      console.log(`Setting poll interval to ${pollInterval} seconds`);
     }
     
     // Login to FYTA API
@@ -45,8 +56,10 @@ driver.on(api.Events.DriverSetup, async (setupData) => {
     
     // Start polling for sensor data
     fytaClient.startPolling(pollInterval);
+    console.log(`Started polling with interval of ${pollInterval} seconds`);
     
     // Complete the setup
+    console.log('Setup completed successfully');
     driver.driverSetupComplete();
   } catch (error) {
     console.error('Setup failed:', error.message);
@@ -77,8 +90,11 @@ driver.on(api.Events.GetAvailableEntities, async () => {
       entityManager.processSensorData(sensor, data);
     }
     
+    const entities = entityManager.getAllEntityDefinitions();
+    console.log(`Returning ${entities.length} entity definitions`);
+    
     // Return all entity definitions
-    return entityManager.getAllEntityDefinitions();
+    return entities;
   } catch (error) {
     console.error('Error getting available entities:', error.message);
     return [];
