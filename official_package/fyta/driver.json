@@ -2,11 +2,10 @@
   "driver_id": "fyta",
   "version": "0.1.0",
   "min_core_api": "0.20.0",
-  "port": 9090,
   "name": {
     "en": "FYTA Plant Monitor"
   },
-  "icon": "plant",
+  "icon": "uc:plant",
   "description": {
     "en": "Monitor your FYTA plant sensors",
     "de": "Überwache deine FYTA Pflanzensensoren"
@@ -63,4 +62,4 @@
       }
     }
   }
-} 
+}
