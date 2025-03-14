@@ -2,7 +2,7 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.18.0-brightgreen)
-![Status: Alpha](https://img.shields.io/badge/status-alpha-red)
+![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow)
 
 A Node.js integration for connecting FYTA plant sensors to the Unfolded Circle Remote Two smart home controller.
 
@@ -106,4 +106,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - [Unfolded Circle](https://www.unfoldedcircle.com/) for their excellent Remote Two platform
-- [FYTA](https://www.fyta.io/) for their plant monitoring system 
+- [FYTA](https://www.fyta.de/) for their plant monitoring system 

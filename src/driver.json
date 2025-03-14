@@ -1,66 +1,37 @@
 {
-  "driver_id": "fyta",
+  "driver_id": "fyta_plant_monitor",
   "version": "0.1.0",
   "min_core_api": "0.20.0",
   "port": 9090,
   "name": {
     "en": "FYTA Plant Monitor"
   },
-  "icon": "plant",
+  "icon": "uc:plant",
   "description": {
-    "en": "Monitor your FYTA plant sensors",
-    "de": "Überwache deine FYTA Pflanzensensoren"
+    "en": "Monitor your FYTA plant sensors"
   },
   "developer": {
-    "name": "Alexander Schäfer",
+    "name": "Alex",
     "url": "https://github.com/Schalex01/uc-integration-fyta"
   },
-  "home_page": "https://fyta.io/",
+  "home_page": "https://fyta.de/",
   "release_date": "2024-03-13",
   "setup_data_schema": {
     "title": {
-      "en": "FYTA Account"
+      "en": "FYTA Plant Monitor"
     },
-    "description": {
-      "en": "Please enter your FYTA account credentials"
-    },
-    "type": "object",
-    "required": [
-      "username",
-      "password"
-    ],
-    "properties": {
-      "username": {
-        "type": "string",
-        "title": {
-          "en": "Email"
+    "settings": [
+      {
+        "id": "setup_fyta",
+        "label": {
+          "en": "Configure FYTA Integration"
         },
-        "description": {
-          "en": "Your FYTA account email"
+        "field": {
+          "checkbox": {
+            "value": true
+          }
         }
-      },
-      "password": {
-        "type": "string",
-        "format": "password",
-        "title": {
-          "en": "Password"
-        },
-        "description": {
-          "en": "Your FYTA account password"
-        }
-      },
-      "poll_interval": {
-        "type": "number",
-        "title": {
-          "en": "Update interval"
-        },
-        "description": {
-          "en": "Interval in seconds to update sensor data"
-        },
-        "default": 300,
-        "minimum": 60,
-        "maximum": 3600
       }
-    }
+    ]
   }
 } 
