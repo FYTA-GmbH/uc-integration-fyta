@@ -9,8 +9,10 @@
     "package": "./package.sh"
   },
   "dependencies": {
-    "@unfoldedcircle/integration-api": "^0.3.0"
+    "@unfoldedcircle/integration-api": "^0.3.0",
+    "axios": "^1.6.2",
+    "ws": "^8.18.1"
   },
   "author": "Alex",
   "license": "MIT"
-} 
+}

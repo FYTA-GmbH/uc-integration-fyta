@@ -1,38 +1,24 @@
 {
   "driver_id": "fyta_plant_monitor",
+  "name": "FYTA Plant Monitor",
+  "icon": "mdi:flower",
   "version": "0.1.0",
   "min_core_api": "0.20.0",
   "port": 9001,
-  "driver_url": "ws://192.168.68.57:9001",
-  "name": {
-    "en": "FYTA Plant Monitor"
-  },
-  "icon": "uc:plant",
+  "driver_url": "ws://192.168.68.61:9001",
   "description": {
     "en": "Monitor your FYTA plant sensors"
   },
   "developer": {
     "name": "Alex",
-    "url": "https://github.com/Schalex01/uc-integration-fyta"
+    "email": "example@example.com",
+    "url": "https://example.com"
   },
   "home_page": "https://fyta.de/",
   "release_date": "2024-03-13",
-  "setup_data_schema": {
-    "title": {
-      "en": "FYTA Plant Monitor"
-    },
-    "settings": [
-      {
-        "id": "setup_fyta",
-        "label": {
-          "en": "Configure FYTA Integration"
-        },
-        "field": {
-          "checkbox": {
-            "value": true
-          }
-        }
-      }
-    ]
+  "setup": {
+    "setup_data": {
+      "setup_fyta": true
+    }
   }
 }

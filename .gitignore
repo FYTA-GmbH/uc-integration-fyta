@@ -4,6 +4,7 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+node_trace*.log
 
 # Dependency directories
 node_modules/
@@ -12,6 +13,9 @@ node_modules/
 dist/
 build/
 package/
+*.tgz
+*.tar.gz
+*.zip
 
 # Environment variables
 .env
@@ -20,12 +24,42 @@ package/
 .env.test.local
 .env.production.local
 
+# Config and sensitive data
+/config/*
+!/config/.gitkeep
+*.pem
+*.key
+*.cert
+credentials.json
+*fyta-credentials.json
+
+# Documentation folder
+/docs/
+
 # OS specific files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Editor directories and files
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+*~
+
+# Debug and test files
+test-*.js
+test-*.sh
+debug-*.sh
+fix-*.sh
+docker-network-test.sh
+
+# Keep essential scripts
+!simple-start.sh
+!simple-register.sh
+!package.sh 

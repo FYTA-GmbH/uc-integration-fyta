@@ -1,4 +1,4 @@
-# FYTA Integration for Unfolded Circle Remote Two
+# FYTA Plant Monitor Integration for Unfolded Circle Remote Two
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.18.0-brightgreen)
@@ -6,104 +6,77 @@
 
 A Node.js integration for connecting FYTA plant sensors to the Unfolded Circle Remote Two smart home controller.
 
-## 🚀 Upload Working, Configuration In Progress
+## Features
 
-**This integration can now be successfully uploaded to the Remote Two device!** However, there are still important issues to resolve:
+- Connect to FYTA API and monitor your plant devices
+- Display plant status and health metrics on Remote Two
+- Alert when plants need attention
+- Monitor soil moisture, temperature, and light levels
 
-### Current Status:
+## Prerequisites
 
-1. ✅ **Package Upload Fixed**: The integration package now uploads successfully to the Remote Two.
-2. ❌ **Configuration Interface**: The setup interface appears but doesn't properly display or process FYTA credentials.
-3. ❌ **API Integration**: The FYTA API client implementation needs testing and fixing with real credentials.
+- Node.js 18 or higher
+- Unfolded Circle Remote Two
+- FYTA Plant Sensor and account
+- Docker (for running the Remote Two emulator)
 
-## Overview
-
-This integration aims to allow you to monitor your FYTA plant sensors directly from your Unfolded Circle Remote Two device. It connects to the FYTA API to retrieve sensor data and presents it as entities on your Remote Two interface.
-
-## Planned Features
-
-- Real-time monitoring of plant sensor data:
-  - Temperature
-  - Moisture
-  - Light levels
-  - Fertility
-- Battery level monitoring
-- Automatic sensor discovery
-- Configurable update intervals
-
-## Installation (Upload Only)
-
-### Prerequisites
-
-- Unfolded Circle Remote Two device with firmware version 1.9.0 or higher
-- FYTA account with at least one sensor
-
-### Installation Steps
-
-1. Download the pre-built package from the `package` directory:
-   - Use the `fyta-integration.tar.gz` file directly
-
-   OR
-
-   Build the package yourself:
-   ```bash
-   ./package.sh
-   ```
-
-2. Install on your Remote Two:
-   - Enable Developer Mode in Settings > System > Developer Options
-   - Go to Settings > Integrations > Install Custom Integration
-   - Upload the `fyta-integration.tar.gz` file
-   
-   **Note**: While the package uploads successfully, the configuration interface doesn't work properly yet, and the integration cannot connect to FYTA at this time.
-
-## Development
-
-### Setup
+## Installation
 
 1. Clone this repository
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
 
-3. Run the integration locally:
-   ```bash
-   node src/index.js
-   ```
+```bash
+npm install
+```
 
-### Project Structure
+3. Set up your configuration:
 
-- `src/index.js` - Main integration driver
-- `src/fyta-api.js` - FYTA API client
-- `src/entity-manager.js` - Entity management for Remote Two
-- `src/driver.js` - Entry point for the integration
-- `src/driver.json` - Integration metadata
+```bash
+# Make scripts executable
+chmod +x *.sh
+```
 
-### Environment Variables
+## Running the Integration
 
-The integration supports the following environment variables:
+Use the provided scripts to start the integration:
 
-- `UC_CONFIG_HOME`: Configuration directory (default: current directory)
-- `UC_INTEGRATION_INTERFACE`: WebSocket listening interface (default: 0.0.0.0)
-- `UC_INTEGRATION_PORT`: WebSocket listening port (default: from driver.json or 8000)
-- `UC_DISABLE_MDNS_PUBLISH`: Disable mDNS service advertisement (default: false)
+```bash
+# Start the integration server
+./simple-start.sh
 
-## Known Issues
+# Register with Remote Two (in a new terminal)
+./simple-register.sh
+```
 
-- **Configuration Interface**: The setup interface appears but doesn't properly display or process input fields.
-- **FYTA API Authentication**: The authentication flow with FYTA credentials doesn't work yet.
-- **Entity Creation**: The entity creation and management need implementation and testing with actual device data.
+## Troubleshooting
 
-## Contributing
+### Network Connection Issues
 
-If you have experience with Remote Two integrations or the FYTA API, your contributions would be greatly appreciated. Please feel free to submit issues or pull requests.
+If you're experiencing connection issues between Docker and the integration:
+
+1. Make sure your firewall allows incoming connections on port 8766
+2. Verify the WebSocket server is running with `lsof -i :8766`
+3. If running on macOS, ensure Docker can connect to the host:
+   - Try using `host.docker.internal` as the hostname
+   - Ensure your Mac's IP address is accessible from Docker
+
+### Driver Not Connected Error
+
+If you see "Driver not connected. TimedOut" in Remote Two:
+
+1. Verify the integration server is running
+2. Check network connectivity between Docker and your machine
+3. Try modifying the WebSocket URL in the registration script
+
+## Development
+
+The integration is built using the official Unfolded Circle integration API. The main components are:
+
+- `src/driver.js`: Main integration driver
+- `simple-start.sh`: Script to start the integration
+- `simple-register.sh`: Script to register with Remote Two
+- `package.sh`: Script to package the integration for distribution
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [Unfolded Circle](https://www.unfoldedcircle.com/) for their excellent Remote Two platform
-- [FYTA](https://www.fyta.de/) for their plant monitoring system 
+MIT 
