@@ -33,9 +33,15 @@ package/
 credentials.json
 *fyta-credentials.json
 
-# Folders
+# Folders to exclude
 /docs/
 /examples/
+/Example/
+/core-simulator/
+test-*.js
+test-*.sh
+fix-*.sh
+debug-*.sh
 
 # OS specific files
 .DS_Store
@@ -53,7 +59,13 @@ Thumbs.db
 *.swo
 *~
 
-# Debug and test files
-test-*.js
-test-*.sh
-fix-*.sh
+# EXPLICITLY TRACKED FILES - NEVER IGNORE THESE
+!src/driver.js
+!src/entity-manager.js 
+!src/fyta-api.js
+!src/driver.json
+!simple-start.sh
+!simple-register.sh
+!package.sh
+!package.json
+!README.md
