@@ -1,0 +1,74 @@
+{
+  "name": "@unfoldedcircle/integration-api",
+  "description": "NodeJS wrapper for the Unfolded Circle Integration API",
+  "version": "0.3.0",
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "types": "dist/mjs/index.d.ts",
+  "directories": {
+    "example": "examples",
+    "lib": "lib"
+  },
+  "dependencies": {
+    "bonjour-service": "^1.2.1",
+    "debug": "^4.3.7",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@ava/typescript": "^5.0.0",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/debug": "^4.1.12",
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "ava": "^6.2.0",
+    "copyfiles": "^2.4.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-config-semistandard": "^17.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-promise": "^6.6.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "code-check": "prettier --check . && eslint .",
+    "lint": "eslint --fix",
+    "test": "npx tsc && ava dist/test/**/*.js",
+    "build": "npm run build:cjs && npm run build:mjs",
+    "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
+    "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
+    "build:win": "npm run build:cjs-win && npm run build:mjs-win",
+    "build:mjs-win": "tsc --project tsconfig.mjs.json && xcopy .\\res\\package.mjs.json .\\dist\\mjs\\package.json /-I /Y",
+    "build:cjs-win": "tsc --project tsconfig.cjs.json && xcopy .\\res\\package.cjs.json .\\dist\\cjs\\package.json /-I /Y"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unfoldedcircle/integration-node-library.git"
+  },
+  "keywords": [
+    "unfoldedcircle",
+    "remotetwo",
+    "smartremote",
+    "api",
+    "integration"
+  ],
+  "author": "Unfolded Circle",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/unfoldedcircle/integration-node-library/issues"
+  },
+  "homepage": "https://unfoldedcircle.com",
+  "engines": {
+    "node": ">=16.18.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

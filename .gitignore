@@ -33,8 +33,9 @@ package/
 credentials.json
 *fyta-credentials.json
 
-# Documentation folder
+# Folders
 /docs/
+/examples/
 
 # OS specific files
 .DS_Store
@@ -55,11 +56,4 @@ Thumbs.db
 # Debug and test files
 test-*.js
 test-*.sh
-debug-*.sh
 fix-*.sh
-docker-network-test.sh
-
-# Keep essential scripts
-!simple-start.sh
-!simple-register.sh
-!package.sh 

@@ -1,0 +1,9 @@
+{
+  "driver_id": "minimal_driver",
+  "version": "0.0.1",
+  "name": { "en": "Minimal driver" },
+  "port": "1946",
+  "developer": {
+    "name": "Jane Doe"
+  }
+}

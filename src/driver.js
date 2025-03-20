@@ -291,7 +291,17 @@ log(`[STARTUP] Environment variables: ${JSON.stringify({
 
 // Check if driver.json exists and is readable
 try {
-  const driverPath = path.join(process.cwd(), 'driver.json');
+  // Use import.meta.url instead of __dirname (which is not available in ES modules)
+  const currentFileUrl = import.meta.url;
+  // Handle both Windows and Unix paths
+  const currentFilePath = new URL(currentFileUrl).pathname;
+  // On Windows, the pathname will have an extra / at the beginning
+  const fixedPath = process.platform === 'win32' 
+    ? currentFilePath.substring(1) 
+    : currentFilePath;
+  const dirPath = path.dirname(fixedPath);
+  const driverPath = path.join(dirPath, 'driver.json');
+  
   if (fs.existsSync(driverPath)) {
     const driverConfig = JSON.parse(fs.readFileSync(driverPath, 'utf8'));
     log(`[STARTUP] driver.json found and valid: ${driverConfig.driver_id} v${driverConfig.version}`);
@@ -1067,9 +1077,20 @@ driver.on(Events.GetStatus, async () => {
 log('[INIT] All event handlers registered, initializing integration with driver.json');
 console.log('DIRECT: All event handlers registered, initializing integration with driver.json');
 try {
-  driver.init("driver.json");
-  log('[INIT] Integration initialized successfully');
-  console.log('DIRECT: Integration initialized successfully');
+  // Use import.meta.url to get path to current file
+  const currentFileUrl = import.meta.url;
+  // Handle both Windows and Unix paths
+  const currentFilePath = new URL(currentFileUrl).pathname;
+  // On Windows, the pathname will have an extra / at the beginning
+  const fixedPath = process.platform === 'win32' 
+    ? currentFilePath.substring(1) 
+    : currentFilePath;
+  const dirPath = path.dirname(fixedPath);
+  const driverJsonPath = path.join(dirPath, 'driver.json');
+  
+  driver.init(driverJsonPath);
+  log(`[INIT] Integration initialized successfully with ${driverJsonPath}`);
+  console.log(`DIRECT: Integration initialized successfully with ${driverJsonPath}`);
 
   // Add direct WebSocket connection status check, runs every 5 seconds
   setInterval(() => {
@@ -1184,76 +1205,8 @@ async function refreshPlantData() {
         log(`[REFRESH ERROR] Error updating entity ${plantId}: ${error.message}`);
       }
     });
-    
-    log('[REFRESH] Plant data refresh completed successfully');
   } catch (error) {
-    log(`[REFRESH ERROR] Error refreshing plant data: ${error.message}`);
+    log(`[REFRESH ERROR] Error in refreshPlantData: ${error.message}`);
     log(`[REFRESH ERROR] Stack trace: ${error.stack}`);
   }
 }
-
-// Schedule regular updates based on refresh interval
-let updateInterval;
-
-// Start with default interval, will be updated after setup
-const startUpdateInterval = () => {
-  log('[SCHEDULER] Starting update interval');
-  // Clear any existing interval
-  if (updateInterval) {
-    log('[SCHEDULER] Clearing existing interval');
-    clearInterval(updateInterval);
-  }
-  
-  try {
-    const credentialsPath = path.join(CONFIG_DIR, 'credentials.json');
-    if (fs.existsSync(credentialsPath)) {
-      const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
-      const minutes = parseInt(credentials.refresh_interval || '5', 10);
-      
-      // Set up the interval with the configured refresh rate
-      updateInterval = setInterval(refreshPlantData, minutes * 60 * 1000);
-      log(`[SCHEDULER] Scheduled plant data refresh every ${minutes} minutes`);
-    } else {
-      // Use default 5 minutes if no configuration exists
-      updateInterval = setInterval(refreshPlantData, 5 * 60 * 1000);
-      log('[SCHEDULER] Scheduled plant data refresh every 5 minutes (default)');
-    }
-  } catch (error) {
-    log(`[SCHEDULER ERROR] Error setting up update interval: ${error.message}`);
-    // Fall back to default interval
-    updateInterval = setInterval(refreshPlantData, 5 * 60 * 1000);
-    log('[SCHEDULER] Using default 5 minute interval due to error');
-  }
-};
-
-// Start the update interval
-startUpdateInterval();
-
-// Periodically log status
-const statusInterval = setInterval(() => {
-  try {
-    log(`[STATUS] Integration still running`);
-  } catch (error) {
-    log(`[STATUS ERROR] Error in status update: ${error.message}`);
-  }
-}, 30000);
-
-// Handle process termination
-process.on('SIGINT', async () => {
-  log('[SHUTDOWN] Received SIGINT signal, shutting down');
-  clearInterval(statusInterval);
-  clearInterval(updateInterval);
-  
-  try {
-    if (driver) {
-      log('[SHUTDOWN] Setting device state to Disconnected');
-      await driver.setDeviceState(DeviceStates.Disconnected);
-      log('[SHUTDOWN] Device state set to Disconnected');
-    }
-  } catch (error) {
-    log(`[SHUTDOWN ERROR] Error during shutdown: ${error.message}`);
-  }
-  
-  log('[SHUTDOWN] Integration shutdown complete');
-  process.exit(0);
-});
