@@ -1,0 +1,160 @@
+{
+  "driver_id": "fyta_plant_monitor",
+  "version": "0.1.0",
+  "min_core_api": "0.20.0",
+  "name": {
+    "en": "FYTA Plant Monitor"
+  },
+  "icon": "mdi:flower",
+  "description": {
+    "en": "Integration for FYTA plant monitoring devices"
+  },
+  "port": "8766",
+  "developer": {
+    "name": "Alex",
+    "email": "example@example.com",
+    "url": "https://example.com"
+  },
+  "home_page": "https://www.fyta.de/",
+  "release_date": "2024-03-20",
+  "setup_data_schema": {
+    "title": {
+      "en": "FYTA Plant Monitor"
+    },
+    "settings": [
+      {
+        "id": "setup_page",
+        "label": {
+          "en": "Configure FYTA Integration"
+        },
+        "field": {
+          "button": {
+            "next_page": "account_config",
+            "page_title": {
+              "en": "FYTA Account Configuration"
+            }
+          }
+        }
+      }
+    ],
+    "pages": {
+      "account_config": {
+        "settings": [
+          {
+            "id": "username",
+            "label": {
+              "en": "FYTA Email"
+            },
+            "field": {
+              "text": {
+                "value": ""
+              }
+            }
+          },
+          {
+            "id": "password",
+            "label": {
+              "en": "FYTA Password"
+            },
+            "field": {
+              "text": {
+                "value": "",
+                "is_password": true
+              }
+            }
+          },
+          {
+            "id": "refresh_interval",
+            "label": {
+              "en": "Data Refresh Interval (minutes)"
+            },
+            "field": {
+              "number": {
+                "value": 5,
+                "min": 1,
+                "max": 60
+              }
+            }
+          },
+          {
+            "id": "temperature_unit",
+            "label": {
+              "en": "Temperature Unit"
+            },
+            "field": {
+              "select": {
+                "value": "celsius",
+                "items": [
+                  {
+                    "value": "celsius",
+                    "label": {
+                      "en": "Celsius (°C)"
+                    }
+                  },
+                  {
+                    "value": "fahrenheit",
+                    "label": {
+                      "en": "Fahrenheit (°F)"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "show_measurements",
+            "label": {
+              "en": "Show Historical Measurements"
+            },
+            "field": {
+              "checkbox": {
+                "value": true
+              }
+            }
+          },
+          {
+            "id": "default_timeline",
+            "label": {
+              "en": "Default Measurement Timeline"
+            },
+            "field": {
+              "select": {
+                "value": "week",
+                "items": [
+                  {
+                    "value": "hour",
+                    "label": {
+                      "en": "Last Hour"
+                    }
+                  },
+                  {
+                    "value": "day",
+                    "label": {
+                      "en": "Last Day"
+                    }
+                  },
+                  {
+                    "value": "week",
+                    "label": {
+                      "en": "Last Week"
+                    }
+                  },
+                  {
+                    "value": "month",
+                    "label": {
+                      "en": "Last Month"
+                    }
+                  }
+                ],
+                "visible_if": {
+                  "field_id": "show_measurements",
+                  "value": true
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+} 
