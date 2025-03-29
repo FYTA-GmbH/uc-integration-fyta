@@ -1,82 +1,168 @@
-# FYTA Plant Monitor Integration for Unfolded Circle Remote Two
+# FYTA Plant Monitor Integration for UC Remote
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.18.0-brightgreen)
-![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow)
+<img src="assets/fyta_transparent.png" width="200" align="right" alt="FYTA Plant Monitor"/>
 
-A Node.js integration for connecting FYTA plant sensors to the Unfolded Circle Remote Two smart home controller.
+This integration connects FYTA plant sensors to Unfolded Circle's Remote Two, allowing you to monitor your plants' temperature and moisture status directly from your UC Remote interface.
+
+**Current Status: MVP/Alpha** - Early development version with basic plant monitoring functionality.
+
+## Screenshots
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+  <img src="assets/FYTA Integration on UC All.jpeg" width="400" alt="FYTA Integration Overview" style="max-width: 45%;"/>
+  <img src="assets/FYTA Integration on UC Temperature.jpeg" width="400" alt="FYTA Temperature Detail" style="max-width: 45%;"/>
+</div>
 
 ## Features
 
-- Connect to FYTA API and monitor your plant devices
-- Display plant status and health metrics on Remote Two
-- Alert when plants need attention
-- Monitor soil moisture, temperature, and light levels
+- Authenticate with FYTA API
+- Retrieve plant data for plants with sensors
+- Display temperature readings with °C units
+- Display moisture status as human-readable text (Perfect, Too Low, etc.)
+- Configuration through UC Remote interface
 
-## Prerequisites
+## Data Flow
 
-- Node.js 18 or higher
-- Unfolded Circle Remote Two
-- FYTA Plant Sensor and account
-- Docker (for running the Remote Two emulator)
+```mermaid
+sequenceDiagram
+    participant User
+    participant UCRemote as UC Remote
+    participant Driver as FYTA Driver
+    participant FYTAAPI as FYTA API
 
-## Installation
-
-1. Clone this repository
-2. Install dependencies:
-
-```bash
-npm install
+    User->>UCRemote: Add Integration
+    UCRemote->>Driver: Initialize
+    Driver->>UCRemote: Request Credentials
+    User->>UCRemote: Enter FYTA Credentials
+    UCRemote->>Driver: Provide Credentials
+    Driver->>FYTAAPI: Authenticate
+    FYTAAPI->>Driver: Return Auth Token
+    Driver->>FYTAAPI: Get User Plants
+    FYTAAPI->>Driver: Return Plant Data
+    Driver->>UCRemote: Register Sensor Entities
+    User->>UCRemote: Subscribe to Sensors
+    UCRemote->>Driver: Subscribe Events
+    Driver->>UCRemote: Update Entity States
 ```
 
-3. Set up your configuration:
+## Setup Instructions
+
+### Prerequisites
+
+- UC Remote
+- FYTA account with plant sensors (you can also use the default plant called Günther for testing)
+- Docker (for compiling)
+
+### Quick Start Guide
+
+To install the pre-compiled integration:
+
+1. Enable Web Configurator and connect to it
+2. In General settings, enable Beta Updates and restart
+3. Install beta firmware 2.3.0
+4. Upload `uc-fyta-custom-aarch64.tar.gz` in Integrations
+5. Configure FYTA credentials and select plant sensors
+
+### Installation
+
+1. Compile the integration (see Compilation Instructions)
+2. Add the integration to your UC Remote
+3. Follow the setup process and enter your FYTA credentials
+4. Select the plant sensors you want to monitor
+
+## Compilation Instructions
+
+The integration can be compiled using Docker:
 
 ```bash
-# Make scripts executable
-chmod +x *.sh
+# Clone the repository
+git clone https://github.com/yourusername/uc-fyta-integration.git
+cd uc-fyta-integration
+
+# Run the compilation script
+chmod +x docker-compile.sh
+./docker-compile.sh
 ```
 
-## Running the Integration
+This will create a `uc-fyta-custom-aarch64.tar.gz` file that can be installed on UC Remote.
 
-Use the provided scripts to start the integration:
+## Architecture
 
-```bash
-# Start the integration server
-./simple-start.sh
+### Component Architecture
 
-# Register with Remote Two (in a new terminal)
-./simple-register.sh
+```mermaid
+classDiagram
+    class FytaConfig {
+        +str id
+        +str email
+        +str password
+        +str access_token
+        +str refresh_token
+        +int expires_in
+    }
+
+    class PlantTemperatureSensor {
+        +str plant_id
+        +str scientific_name
+        +float temperature
+        +int temperature_status
+        +datetime last_updated
+    }
+
+    class PlantMoistureSensor {
+        +str plant_id
+        +str scientific_name
+        +int moisture_status
+        +datetime last_updated
+    }
+
+    class UCAPIIntegration {
+        +register_entities()
+        +handle_setup()
+        +on_connect()
+        +on_subscribe_entities()
+    }
+
+    UCAPIIntegration --> PlantTemperatureSensor : creates
+    UCAPIIntegration --> PlantMoistureSensor : creates
+    UCAPIIntegration --> FytaConfig : uses
 ```
 
-## Troubleshooting
+## Known Issues and Limitations
 
-### Network Connection Issues
+### Bugs
 
-If you're experiencing connection issues between Docker and the integration:
+- **UI Freeze**: Sometimes the frontend freezes when adding the selected entities during the integration setup phase. Workaround: Kill the page and refresh it, then the integration works correctly.
 
-1. Make sure your firewall allows incoming connections on port 8766
-2. Verify the WebSocket server is running with `lsof -i :8766`
-3. If running on macOS, ensure Docker can connect to the host:
-   - Try using `host.docker.internal` as the hostname
-   - Ensure your Mac's IP address is accessible from Docker
+### Limitations
 
-### Driver Not Connected Error
+- **No periodic updates**: Currently, the integration only retrieves plant data during the initial setup. There is no periodic polling to update the sensor data. The entities show the data that is queried and received from the FYTA API at setup time.
+- **Reboot Issues**: After rebooting the UC Remote, the entities may not load correctly on the screen. A reinstallation of the integration is required to restore proper functionality.
+- Error handling is minimal
 
-If you see "Driver not connected. TimedOut" in Remote Two:
+## How to Contribute
 
-1. Verify the integration server is running
-2. Check network connectivity between Docker and your machine
-3. Try modifying the WebSocket URL in the registration script
+Contributions are welcome! Here are some ways you can help improve this integration:
 
-## Development
+1. **Code Improvements**:
 
-The integration is built using the official Unfolded Circle integration API. The main components are:
+   - Add periodic data updates
+   - Improve error handling
+   - Build a custom UI for data visualization
 
-- `src/driver.js`: Main integration driver
-- `simple-start.sh`: Script to start the integration
-- `simple-register.sh`: Script to register with Remote Two
-- `package.sh`: Script to package the integration for distribution
+2. **Testing**:
+
+   - Report bugs and issues
+
+3. **Documentation**:
+   - Improve this README
+   - Add screenshots
 
 ## License
 
-MIT 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- FYTA for their plant monitoring technology
+- Unfolded Circle for the UC Remote platform and API

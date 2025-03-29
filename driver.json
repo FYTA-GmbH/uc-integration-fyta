@@ -1,0 +1,40 @@
+{
+    "driver_id": "fyta_integration",
+    "version": "0.0.1",
+    "min_core_api": "0.20.0",
+    "name": {
+        "en": "FYTA Plant Monitor"
+    },
+    "port": 9001,
+    "icon": "custom:fyta.png",
+    "description": {
+        "en": "Integration for FYTA plant sensors to monitor soil moisture, temperature, light and salinity."
+    },
+    "developer": {
+        "name": "FYTA GmbH",
+        "email": "support@fyta.de",
+        "url": "https://www.fyta.de"
+    },
+    "home_page": "https://www.fyta.de",
+    "release_date": "2025-03-27",
+    "setup_data_schema": {
+        "title": {
+            "en": "FYTA Account Configuration"
+        },
+        "settings": [
+            {
+                "id": "info",
+                "label": {
+                    "en": "FYTA Account"
+                },
+                "field": {
+                    "label": {
+                        "value": {
+                            "en": "Please click next to enter your FYTA account credentials."
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}
