@@ -467,7 +467,14 @@ async def create_plant_sensors() -> None:
                 scientific_name = plant.get("scientific_name", "Unknown")
                 
                 # Get plant details for initial values
-                plant_details = await get_plant_details(str(plant_id))
+                try:
+                    plant_details = await get_plant_details(str(plant_id))
+                    if not plant_details:
+                        _LOG.warning("Could not get details for plant %s, skipping", nickname)
+                        continue
+                except Exception as e:
+                    _LOG.error("Error fetching details for plant %s: %s", nickname, e)
+                    continue
                 
                 # Create a new temperature sensor entity
                 temp_sensor = PlantTemperatureSensor(
@@ -488,26 +495,71 @@ async def create_plant_sensors() -> None:
                     _LOG.debug("Plant details received")
                     measurements = plant_details.get("measurements", {})
                     
+                    # Check for battery low condition - Fix for undefined variable
+                    battery_low = False
+                    if "sensor" in plant_details and plant_details["sensor"].get("is_battery_low", False):
+                        battery_low = True
+                        _LOG.warning("Plant %s has low battery", nickname)
+                    
                     # Set temperature values
                     if "temperature" in measurements and isinstance(measurements["temperature"], dict):
                         _LOG.debug("Temperature measurements received")
                         temp_values = measurements["temperature"].get("values", {})
-                        if temp_values and "current" in temp_values:
-                            _LOG.debug("Temperature value received")
-                            temp_sensor.attributes[Attributes.VALUE] = temp_values["current"]
-                            temp_sensor.attributes["status"] = get_measurement_status_text(
-                                measurements["temperature"].get("status")
-                            )
+                        temp_status = measurements["temperature"].get("status")
+                        
+                        # Use try/except to handle potential type conversion issues
+                        try:
+                            # Status 0 means "No Data" according to FYTA API docs
+                            if temp_status == 0:
+                                _LOG.debug("Temperature has no data for plant %s", nickname)
+                                temp_sensor.attributes[Attributes.VALUE] = "0"
+                            elif temp_values and "current" in temp_values:
+                                # We have a valid temperature reading
+                                temp_value = temp_values["current"]
+                                # Make sure it's a string before setting it as an attribute
+                                if not isinstance(temp_value, str):
+                                    temp_value = str(temp_value)
+                                _LOG.debug("Temperature value received: %s", temp_value)
+                                temp_sensor.attributes[Attributes.VALUE] = temp_value
+                            
+                            # Set status text based on the status code
+                            temp_sensor.attributes["status"] = get_measurement_status_text(temp_status)
+                        except Exception as e:
+                            _LOG.error("Error processing temperature for plant %s: %s", nickname, e)
+                            # Set safe default value on error
+                            temp_sensor.attributes[Attributes.VALUE] = "0"
+                            temp_sensor.attributes["status"] = "Error"
                     
                     # Set moisture values - focus on status text rather than numeric value
                     if "moisture" in measurements and isinstance(measurements["moisture"], dict):
                         _LOG.debug("Moisture measurements received")
                         moisture_status_code = measurements["moisture"].get("status")
-                        moisture_status_text = get_measurement_status_text(moisture_status_code)
+                        moisture_values = measurements["moisture"].get("values", {})
                         
-                        # Set the status text as the value
-                        moisture_sensor.attributes[Attributes.VALUE] = moisture_status_text
-                        moisture_sensor.moisture_status = moisture_status_code
+                        try:
+                            # Status 0 means "No Data" according to FYTA API docs
+                            if moisture_status_code == 0:
+                                _LOG.debug("Moisture has no data for plant %s", nickname)
+                                moisture_sensor.attributes[Attributes.VALUE] = "No Data"
+                            # Special handling for plants with zero moisture and status 1 (Too Low)
+                            elif moisture_status_code == 1 and moisture_values.get("current") == "0":
+                                _LOG.warning("Plant %s has zero moisture", nickname)
+                                moisture_sensor.attributes[Attributes.VALUE] = "To Low"
+                                moisture_sensor.moisture_status = moisture_status_code
+                            else:
+                                # We have a valid moisture status
+                                moisture_status_text = get_measurement_status_text(moisture_status_code)
+                                moisture_sensor.attributes[Attributes.VALUE] = moisture_status_text
+                                moisture_sensor.moisture_status = moisture_status_code
+                                
+                            # Add battery warning to status if necessary
+                            if battery_low:
+                                current_value = moisture_sensor.attributes[Attributes.VALUE]
+                                moisture_sensor.attributes[Attributes.VALUE] = f"{current_value} (Battery Low)"
+                        except Exception as e:
+                            _LOG.error("Error processing moisture for plant %s: %s", nickname, e)
+                            # Set safe default value on error
+                            moisture_sensor.attributes[Attributes.VALUE] = "Unknown"
                 
                 # Store the sensors - Use sensor.id instead of sensor.identifier
                 _plant_sensors[temp_sensor.id] = temp_sensor
