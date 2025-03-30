@@ -52,8 +52,6 @@ FYTA_PLANT_DETAILS_URL = "https://web.fyta.de/api/user-plant/{plant_id}"
 # Settings constants
 MAX_STARTUP_RETRIES = 5
 RETRY_DELAY_SECONDS = 10
-# DATA_UPDATE_INTERVAL = 900  # Update plant data every 15 minutes
-DATA_UPDATE_INTERVAL = 60  # Update plant data every minute (for testing)
 
 
 @dataclass
@@ -302,6 +300,35 @@ def save_config(config: FytaConfig) -> bool:
     except Exception as e:
         _LOG.error("Failed to save configuration: %s", e)
         return False
+
+
+def store_entities(entities_data: Dict[str, dict]) -> bool:
+    """Store entity data to a file for persistence across reboots."""
+    try:
+        entities_path = os.path.join(os.getenv("UC_CONFIG_HOME", os.getcwd()), "entities.json")
+        with open(entities_path, "w", encoding="utf-8") as f:
+            json.dump(entities_data, f, ensure_ascii=False)
+        _LOG.info("Successfully saved %d entities to file: %s", len(entities_data), entities_path)
+        return True
+    except Exception as e:
+        _LOG.error("Failed to save entities: %s", e)
+        return False
+
+
+def load_entities() -> Dict[str, dict]:
+    """Load entity data from file."""
+    try:
+        entities_path = os.path.join(os.getenv("UC_CONFIG_HOME", os.getcwd()), "entities.json")
+        if not os.path.exists(entities_path):
+            _LOG.info("No stored entities file found")
+            return {}
+            
+        _LOG.info("Loading entities from file: %s", entities_path)
+        with open(entities_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        _LOG.error("Failed to load entities: %s", e)
+        return {}
 
 
 def load_config() -> Optional[FytaConfig]:
@@ -608,6 +635,29 @@ async def create_plant_sensors() -> None:
     _LOG.info("Found %d configured entities", len(configured_entities))
     for entity in configured_entities:
         _LOG.info("Configured entity: %s", entity["entity_id"])
+        
+    # Store entities to file for persistence across reboots
+    _LOG.info("Storing entities for persistence")
+    entities_data = {}
+    for entity_id, entity in _plant_sensors.items():
+        if isinstance(entity, PlantTemperatureSensor):
+            entities_data[entity_id] = {
+                "type": "temperature",
+                "plant_id": entity.plant_id,
+                "nickname": entity.name,
+                "scientific_name": entity.scientific_name,
+                "attributes": entity.attributes
+            }
+        elif isinstance(entity, PlantMoistureSensor):
+            entities_data[entity_id] = {
+                "type": "moisture",
+                "plant_id": entity.plant_id,
+                "nickname": entity.name,
+                "scientific_name": entity.scientific_name,
+                "attributes": entity.attributes
+            }
+    
+    store_entities(entities_data)
 
 
 async def is_network_connected() -> bool:
@@ -647,13 +697,22 @@ async def on_r2_connect_cmd() -> None:
     """Handle connect event from Remote Two."""
     _LOG.info("Connect command received from Remote Two")
     
-    # If we have no entities but have config, try to set them up now
+    # Check current entities first
     entities = api.available_entities.get_all()
-    if len(entities) == 0 and _fyta_config and _fyta_config.email:
-        _LOG.info("No entities found but configuration exists - attempting to create sensors")
+    _LOG.info("Found %d available entities at connect", len(entities))
+    
+    # Set device state to CONNECTED first so Remote can see the entities
+    _LOG.info("Setting device state to CONNECTED")
+    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
+    _LOG.info("Device state set to CONNECTED")
+    
+    # Check if we have configuration but need to update entity values
+    if _fyta_config and _fyta_config.email:
+        _LOG.info("Configuration exists - checking connectivity to update entities")
         
         if await is_network_connected():
             try:
+                # Try to re-authenticate with FYTA API
                 auth_response = await authenticate_fyta(_fyta_config.email, _fyta_config.password)
                 if auth_response and "access_token" in auth_response:
                     _LOG.info("Successfully re-authenticated with FYTA API during connect")
@@ -663,18 +722,112 @@ async def on_r2_connect_cmd() -> None:
                     _fyta_config.expires_in = auth_response.get("expires_in")
                     save_config(_fyta_config)
                     
-                    # Create plant sensors
-                    await create_plant_sensors()
+                    # If we already have entities, update them with fresh data
+                    if len(entities) > 0:
+                        _LOG.info("Updating existing entities with fresh data")
+                        # Get all plants to update sensor values
+                        plants = await get_user_plants()
+                        
+                        for plant in plants:
+                            plant_id = str(plant.get("id"))
+                            nickname = plant.get("nickname", f"Plant {plant_id}")
+                            
+                            # Find the plant's sensors in our entities
+                            temp_entity_id = f"fyta-plant-{plant_id}"
+                            moisture_entity_id = f"fyta-moisture-{plant_id}"
+                            
+                            # Get plant details for updated values
+                            try:
+                                plant_details = await get_plant_details(plant_id)
+                                if plant_details and "measurements" in plant_details:
+                                    # Update temperature sensor if available
+                                    if api.available_entities.contains(temp_entity_id):
+                                        temp_sensor = _plant_sensors.get(temp_entity_id)
+                                        if temp_sensor and "temperature" in plant_details["measurements"]:
+                                            temp_data = plant_details["measurements"]["temperature"]
+                                            temp_values = temp_data.get("values", {})
+                                            temp_status = temp_data.get("status")
+                                            
+                                            if temp_values and "current" in temp_values:
+                                                temp_value = str(temp_values["current"])
+                                                temp_sensor.attributes[Attributes.VALUE] = temp_value
+                                                temp_sensor.attributes["status"] = get_measurement_status_text(temp_status)
+                                                
+                                                # Update configured entity if it exists
+                                                if api.configured_entities.contains(temp_entity_id):
+                                                    api.configured_entities.update_attributes(
+                                                        temp_entity_id,
+                                                        {
+                                                            Attributes.STATE: States.ON,
+                                                            Attributes.VALUE: temp_value,
+                                                            Attributes.UNIT: "°C"
+                                                        }
+                                                    )
+                                                    _LOG.info("Updated temperature entity %s with value %s", temp_entity_id, temp_value)
+                                    
+                                    # Update moisture sensor if available
+                                    if api.available_entities.contains(moisture_entity_id):
+                                        moisture_sensor = _plant_sensors.get(moisture_entity_id)
+                                        if moisture_sensor and "moisture" in plant_details["measurements"]:
+                                            moisture_data = plant_details["measurements"]["moisture"]
+                                            moisture_status_code = moisture_data.get("status")
+                                            
+                                            # Set moisture status text
+                                            moisture_status_text = get_measurement_status_text(moisture_status_code)
+                                            moisture_sensor.attributes[Attributes.VALUE] = moisture_status_text
+                                            
+                                            # Check for battery low condition
+                                            if "sensor" in plant_details and plant_details["sensor"].get("is_battery_low", False):
+                                                current_value = moisture_sensor.attributes[Attributes.VALUE]
+                                                moisture_sensor.attributes[Attributes.VALUE] = f"{current_value} (Battery Low)"
+                                            
+                                            # Update configured entity if it exists
+                                            if api.configured_entities.contains(moisture_entity_id):
+                                                api.configured_entities.update_attributes(
+                                                    moisture_entity_id,
+                                                    {
+                                                        Attributes.STATE: States.ON,
+                                                        Attributes.VALUE: moisture_sensor.attributes[Attributes.VALUE]
+                                                    }
+                                                )
+                                                _LOG.info("Updated moisture entity %s with status %s", 
+                                                          moisture_entity_id, moisture_sensor.attributes[Attributes.VALUE])
+                            except Exception as e:
+                                _LOG.error("Error updating plant %s during connect: %s", nickname, e)
+                                continue
+                        
+                        # Store updated entities
+                        _LOG.info("Storing updated entities")
+                        entities_data = {}
+                        for entity_id, entity in _plant_sensors.items():
+                            if isinstance(entity, PlantTemperatureSensor):
+                                entities_data[entity_id] = {
+                                    "type": "temperature",
+                                    "plant_id": entity.plant_id,
+                                    "nickname": entity.name,
+                                    "scientific_name": entity.scientific_name,
+                                    "attributes": entity.attributes
+                                }
+                            elif isinstance(entity, PlantMoistureSensor):
+                                entities_data[entity_id] = {
+                                    "type": "moisture",
+                                    "plant_id": entity.plant_id,
+                                    "nickname": entity.name,
+                                    "scientific_name": entity.scientific_name,
+                                    "attributes": entity.attributes
+                                }
+                        store_entities(entities_data)
+                    else:
+                        # Create new plant sensors if none exist
+                        _LOG.info("No entities found - creating new ones")
+                        await create_plant_sensors()
             except Exception as e:
-                _LOG.error("Error during connect authentication: %s", e)
-    
-    _LOG.info("Setting device state to CONNECTED")
-    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
-    _LOG.info("Device state set to CONNECTED")
-
-    entities = api.available_entities.get_all()
-    _LOG.info("Found %d registered entities", len(entities))
-    _LOG.debug("entities: %s", entities)
+                _LOG.error("Error during connect re-authentication: %s", e)
+        else:
+            _LOG.warning("Network not available during connect - using stored entities only")
+            # Will continue using the stored entities loaded during startup
+    else:
+        _LOG.warning("No configuration available during connect")
 
 
 def get_measurement_status_text(status_code) -> str:
@@ -731,91 +884,42 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
             # Set initial state to ON
             _LOG.info("Setting initial state of temperature sensor %s", entity_id)
             
+            # Get current value from the entity (might be from storage or fresh data)
+            current_value = entity.attributes.get(Attributes.VALUE, "0")
+            
             # Update the attributes using the configured_entities method
             api.configured_entities.update_attributes(
                 entity_id, 
                 {
-                    ucapi.sensor.Attributes.STATE: ucapi.sensor.States.ON,
-                    ucapi.sensor.Attributes.VALUE: entity.attributes.get(ucapi.sensor.Attributes.VALUE, "0"),
-                    ucapi.sensor.Attributes.UNIT: "°C"
+                    Attributes.STATE: States.ON,
+                    Attributes.VALUE: current_value,
+                    Attributes.UNIT: "°C"
                 }
             )
+            _LOG.info("Updated temperature entity %s with value %s", entity_id, current_value)
         
         # Check if entity is a moisture sensor
         elif entity and isinstance(entity, PlantMoistureSensor):
             # Set initial state to ON
             _LOG.info("Setting initial state of moisture sensor %s", entity_id)
             
+            # Get current value from the entity (might be from storage or fresh data)
+            current_value = entity.attributes.get(Attributes.VALUE, "Unknown")
+            
             # Update the attributes using the configured_entities method
             api.configured_entities.update_attributes(
                 entity_id, 
                 {
-                    ucapi.sensor.Attributes.STATE: ucapi.sensor.States.ON,
-                    ucapi.sensor.Attributes.VALUE: entity.attributes.get(ucapi.sensor.Attributes.VALUE, "Unknown"),
-                    # ucapi.sensor.Attributes.UNIT: "Status"
+                    Attributes.STATE: States.ON,
+                    Attributes.VALUE: current_value
                 }
             )
-
-
-async def update_plant_data():
-    """Background task to update plant data periodically."""
-    await asyncio.sleep(60)  # Initial delay to let system stabilize
-    
-    while True:
-        try:
-            if _fyta_config and _fyta_config.access_token:
-                _LOG.info("Updating plant data from FYTA API")
-                
-                if await is_network_connected():
-                    plants = await get_user_plants()
-                    
-                    for plant_id in _plant_sensors:
-                        try:
-                            if plant_id.startswith("fyta-plant-"):
-                                # Extract plant ID from entity ID
-                                pid = plant_id.replace("fyta-plant-", "")
-                                
-                                # Get plant details
-                                plant_details = await get_plant_details(pid)
-                                
-                                if plant_details and "measurements" in plant_details:
-                                    measurements = plant_details.get("measurements", {})
-                                    
-                                    # Update temperature readings
-                                    if "temperature" in measurements and isinstance(measurements["temperature"], dict):
-                                        temp_values = measurements["temperature"].get("values", {})
-                                        
-                                        if temp_values and "current" in temp_values:
-                                            temp_value = temp_values["current"]
-                                            _LOG.debug("Updating temperature to %s for plant %s", temp_value, pid)
-                                            
-                                            # Update configured entity if it exists
-                                            if api.configured_entities.contains(plant_id):
-                                                api.configured_entities.update_attributes(
-                                                    plant_id,
-                                                    {ucapi.sensor.Attributes.VALUE: str(temp_value)}
-                                                )
-                            
-                            # Similarly handle moisture sensors
-                            if plant_id.startswith("fyta-moisture-"):
-                                # Extract plant ID from entity ID
-                                pid = plant_id.replace("fyta-moisture-", "")
-                                
-                                # Handle moisture updates here...
-                                # (similar structure to temperature updates)
-                                
-                        except Exception as e:
-                            _LOG.error("Error updating plant %s: %s", plant_id, e)
-                
-        except Exception as e:
-            _LOG.error("Error in plant data update task: %s", e)
-        
-        await asyncio.sleep(DATA_UPDATE_INTERVAL)
+            _LOG.info("Updated moisture entity %s with value %s", entity_id, current_value)
 
 
 async def main():
     """Main entry point for the integration."""
-    global _fyta_config
+    global _fyta_config, _plant_sensors
     
     # Configure logging
     logging.basicConfig(
@@ -827,43 +931,117 @@ async def main():
     
     # Load existing configuration
     _fyta_config = load_config()
-    if _fyta_config and _fyta_config.email:
-        _LOG.info("Loaded FYTA configuration")
-        
-        # Wait for network connectivity before authenticating
-        if await wait_for_network_connection():
-            # Try to re-authenticate with saved credentials
-            try:
-                auth_response = await authenticate_fyta(_fyta_config.email, _fyta_config.password)
-                if auth_response and "access_token" in auth_response:
-                    _LOG.info("Successfully re-authenticated with FYTA API")
-                    # Update tokens in config
-                    _fyta_config.access_token = auth_response.get("access_token")
-                    _fyta_config.refresh_token = auth_response.get("refresh_token")
-                    _fyta_config.expires_in = auth_response.get("expires_in")
-                    save_config(_fyta_config)
-                    
-                    # Create plant sensors after successful authentication
-                    await create_plant_sensors()
-                else:
-                    _LOG.error("Failed to re-authenticate with FYTA API")
-            except Exception as e:
-                _LOG.error("Error during startup authentication: %s", e)
-        else:
-            _LOG.warning("Network not available during startup - will try to reconnect later")
-            # Initialize empty entities list anyway so the integration starts
-            # The on_r2_connect_cmd event handler will retry later
-    else:
-        _LOG.warning("No configuration found or invalid configuration")
-
+    
     # Initialize the integration with driver.json and setup handler
     _LOG.info("Initializing UC Remote integration API")
     await api.init("driver.json", driver_setup_handler)
     
-    # Start data update background task
-    # _LOOP.create_task(update_plant_data())
+    # Load stored entities first to ensure they're available immediately
+    _LOG.info("Loading stored entities")
+    stored_entities = load_entities()
+    _LOG.info("Found %d stored entities", len(stored_entities))
+    
+    if stored_entities:
+        _plant_sensors = {}
+        for entity_id, entity_data in stored_entities.items():
+            try:
+                if entity_data["type"] == "temperature":
+                    # Get nickname - handle both string and dict formats
+                    nickname = entity_data.get("nickname", "Unknown Plant")
+                    if isinstance(nickname, dict):
+                        # If nickname is a dictionary, convert to string
+                        nickname = str(nickname)
+                    elif isinstance(nickname, str) and " Temperature" in nickname:
+                        # If it's a string with suffix, remove the suffix
+                        nickname = nickname.replace(" Temperature", "")
+                    
+                    # Create temperature sensor
+                    sensor = PlantTemperatureSensor(
+                        plant_id=entity_data["plant_id"],
+                        nickname=nickname,
+                        scientific_name=entity_data.get("scientific_name", "Unknown")
+                    )
+                    
+                    # Set stored attributes if available
+                    if "attributes" in entity_data:
+                        # Set only the most essential attributes for initial display
+                        sensor.attributes[Attributes.VALUE] = entity_data["attributes"].get(Attributes.VALUE, "0")
+                        
+                    _plant_sensors[entity_id] = sensor
+                    api.available_entities.add(sensor)
+                    _LOG.info("Loaded temperature entity %s from storage", entity_id)
+                
+                elif entity_data["type"] == "moisture":
+                    # Get nickname - handle both string and dict formats
+                    nickname = entity_data.get("nickname", "Unknown Plant")
+                    if isinstance(nickname, dict):
+                        # If nickname is a dictionary, convert to string
+                        nickname = str(nickname)
+                    elif isinstance(nickname, str) and " Moisture" in nickname:
+                        # If it's a string with suffix, remove the suffix
+                        nickname = nickname.replace(" Moisture", "")
+                    
+                    # Create moisture sensor
+                    sensor = PlantMoistureSensor(
+                        plant_id=entity_data["plant_id"],
+                        nickname=nickname,
+                        scientific_name=entity_data.get("scientific_name", "Unknown")
+                    )
+                    
+                    # Set stored attributes if available
+                    if "attributes" in entity_data:
+                        # Set only the most essential attributes for initial display
+                        sensor.attributes[Attributes.VALUE] = entity_data["attributes"].get(Attributes.VALUE, "Unknown")
+                        
+                    _plant_sensors[entity_id] = sensor
+                    api.available_entities.add(sensor)
+                    _LOG.info("Loaded moisture entity %s from storage", entity_id)
+            except Exception as e:
+                _LOG.error("Error loading entity %s: %s", entity_id, e)
+    
+    # IMPORTANT: Set device to CONNECTED state AFTER loading stored entities
+    # This ensures entities are available to Remote Two when it connects
+    _LOG.info("Setting device state to CONNECTED with stored entities")
+    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
+    
+    # AFTER setting connected state with stored entities, try to update from API
+    if _fyta_config and _fyta_config.email:
+        _LOG.info("Loaded FYTA configuration, will update entities in background")
+        
+        # Start a background task to update entities from API
+        # This way the integration can respond to Remote Two immediately
+        asyncio.create_task(update_entities_from_api())
+    else:
+        _LOG.warning("No configuration found or invalid configuration")
     
     _LOG.info("Integration startup complete")
+
+
+async def update_entities_from_api():
+    """Background task to update entities from FYTA API."""
+    _LOG.info("Starting background task to update entities from API")
+    
+    # Wait for network connectivity before authenticating
+    if await wait_for_network_connection():
+        # Try to re-authenticate with saved credentials
+        try:
+            auth_response = await authenticate_fyta(_fyta_config.email, _fyta_config.password)
+            if auth_response and "access_token" in auth_response:
+                _LOG.info("Successfully re-authenticated with FYTA API")
+                # Update tokens in config
+                _fyta_config.access_token = auth_response.get("access_token")
+                _fyta_config.refresh_token = auth_response.get("refresh_token")
+                _fyta_config.expires_in = auth_response.get("expires_in")
+                save_config(_fyta_config)
+                
+                # Create/update plant sensors after successful authentication
+                await create_plant_sensors()
+            else:
+                _LOG.error("Failed to re-authenticate with FYTA API")
+        except Exception as e:
+            _LOG.error("Error during startup authentication: %s", e)
+    else:
+        _LOG.warning("Network not available during startup - will try to reconnect later")
 
 
 if __name__ == "__main__":
