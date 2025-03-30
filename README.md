@@ -4,7 +4,7 @@
 
 This integration connects FYTA plant sensors to Unfolded Circle's Remote Two, allowing you to monitor your plants' temperature and moisture status directly from your UC Remote interface.
 
-**Current Status: MVP/Alpha** - Early development version with basic plant monitoring functionality.
+**Current Status: Beta** - Stable version with reliable plant monitoring functionality.
 
 ## Screenshots
 
@@ -21,7 +21,11 @@ This integration connects FYTA plant sensors to Unfolded Circle's Remote Two, al
 - Retrieve plant data for plants with sensors
 - Display temperature readings with °C units
 - Display moisture status as human-readable text (Perfect, Too Low, etc.)
+- Low battery warnings displayed alongside moisture status
 - Configuration through UC Remote interface
+- Automatic periodic updates every 15 minutes
+- Robust error handling with automatic retries for API timeouts
+- Persistent storage of entity data that survives reboots
 
 ## Data Flow
 
@@ -30,21 +34,35 @@ sequenceDiagram
     participant User
     participant UCRemote as UC Remote
     participant Driver as FYTA Driver
+    participant Storage as Persistent Storage
     participant FYTAAPI as FYTA API
 
     User->>UCRemote: Add Integration
     UCRemote->>Driver: Initialize
-    Driver->>UCRemote: Request Credentials
+    Driver->>Storage: Load Stored Configuration
+    Driver->>Storage: Load Stored Entities
+    Driver->>UCRemote: Register Stored Entities
+    Driver->>UCRemote: Request Credentials (if needed)
     User->>UCRemote: Enter FYTA Credentials
     UCRemote->>Driver: Provide Credentials
-    Driver->>FYTAAPI: Authenticate
+    Driver->>FYTAAPI: Authenticate (with retries)
     FYTAAPI->>Driver: Return Auth Token
-    Driver->>FYTAAPI: Get User Plants
-    FYTAAPI->>Driver: Return Plant Data
+    Driver->>FYTAAPI: Get User Plants (with retries)
+    FYTAAPI->>Driver: Return Plant List
+    Driver->>FYTAAPI: Get Plant Details (with retries)
+    FYTAAPI->>Driver: Return Plant Data with Battery Status
     Driver->>UCRemote: Register Sensor Entities
+    Driver->>Storage: Store Configuration & Entities
     User->>UCRemote: Subscribe to Sensors
     UCRemote->>Driver: Subscribe Events
     Driver->>UCRemote: Update Entity States
+    
+    loop Every 15 minutes
+        Driver->>FYTAAPI: Get Updated Plant Data (with retries)
+        FYTAAPI->>Driver: Return Fresh Plant Data
+        Driver->>UCRemote: Update Entity Values
+        Driver->>Storage: Store Updated Entities
+    end
 ```
 
 ## Setup Instructions
@@ -132,33 +150,23 @@ classDiagram
 
 ## Known Issues and Limitations
 
-### Bugs
-
-- **UI Freeze**: Sometimes the frontend freezes when adding the selected entities during the integration setup phase. Workaround: Kill the page and refresh it, then the integration works correctly.
-
 ### Limitations
 
-- **No periodic updates**: Currently, the integration only retrieves plant data during the initial setup. There is no periodic polling to update the sensor data. The entities show the data that is queried and received from the FYTA API at setup time.
-- **Reboot Issues**: After rebooting the UC Remote, the entities may not load correctly on the screen. A reinstallation of the integration is required to restore proper functionality.
-- Error handling is minimal
+- The integration currently doesn't support multiple user accounts
+- No custom UI for data visualization yet
 
 ## How to Contribute
 
 Contributions are welcome! Here are some ways you can help improve this integration:
 
 1. **Code Improvements**:
-
-   - Add periodic data updates
-   - Improve error handling
    - Build a custom UI for data visualization
 
 2. **Testing**:
-
    - Report bugs and issues
 
 3. **Documentation**:
    - Improve this README
-   - Add screenshots
 
 ## License
 
