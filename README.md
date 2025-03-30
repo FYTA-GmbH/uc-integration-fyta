@@ -1,7 +1,5 @@
 # FYTA Plant Monitor Integration for UC Remote
 
-<img src="assets/fyta_transparent.png" width="200" align="right" alt="FYTA Plant Monitor"/>
-
 This integration connects FYTA plant sensors to Unfolded Circle's Remote Two, allowing you to monitor your plants' temperature and moisture status directly from your UC Remote interface.
 
 **Current Status: Beta** - Stable version with reliable plant monitoring functionality.
@@ -126,6 +124,7 @@ classDiagram
         +str scientific_name
         +float temperature
         +int temperature_status
+        +str status_text
         +datetime last_updated
     }
 
@@ -133,34 +132,54 @@ classDiagram
         +str plant_id
         +str scientific_name
         +int moisture_status
+        +str status_text
+        +bool battery_low
         +datetime last_updated
     }
 
+    class ApiClient {
+        +authenticate_fyta()
+        +get_user_plants()
+        +get_plant_details()
+        +retry_api_call()
+    }
+
+    class DataPersistence {
+        +save_config()
+        +load_config()
+        +store_entities()
+        +load_entities()
+    }
+
+    class PeriodicUpdateService {
+        +start_periodic_updates()
+        +update_plant_data()
+        +update_entities_from_api()
+    }
+
     class UCAPIIntegration {
-        +register_entities()
         +handle_setup()
         +on_connect()
         +on_subscribe_entities()
     }
 
-    UCAPIIntegration --> PlantTemperatureSensor : creates
-    UCAPIIntegration --> PlantMoistureSensor : creates
+    UCAPIIntegration --> PlantTemperatureSensor : creates/manages
+    UCAPIIntegration --> PlantMoistureSensor : creates/manages
     UCAPIIntegration --> FytaConfig : uses
+    UCAPIIntegration --> ApiClient : uses
+    UCAPIIntegration --> DataPersistence : uses
+    UCAPIIntegration --> PeriodicUpdateService : initializes
+    ApiClient --> FytaConfig : uses credentials
+    PeriodicUpdateService --> ApiClient : calls
+    PeriodicUpdateService --> DataPersistence : stores updates
 ```
-
-## Known Issues and Limitations
-
-### Limitations
-
-- The integration currently doesn't support multiple user accounts
-- No custom UI for data visualization yet
 
 ## How to Contribute
 
 Contributions are welcome! Here are some ways you can help improve this integration:
 
 1. **Code Improvements**:
-   - Build a custom UI for data visualization
+   - Improve UI for data visualization
 
 2. **Testing**:
    - Report bugs and issues
@@ -175,4 +194,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - FYTA for their plant monitoring technology
-- Unfolded Circle for the UC Remote platform and API
+- Unfolded Circle Community for the support
