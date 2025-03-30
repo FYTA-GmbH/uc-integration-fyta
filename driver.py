@@ -49,6 +49,12 @@ FYTA_AUTH_URL = "https://web.fyta.de/api/auth/login"
 FYTA_USER_PLANTS_URL = "https://web.fyta.de/api/user-plant"
 FYTA_PLANT_DETAILS_URL = "https://web.fyta.de/api/user-plant/{plant_id}"
 
+# Settings constants
+MAX_STARTUP_RETRIES = 5
+RETRY_DELAY_SECONDS = 10
+# DATA_UPDATE_INTERVAL = 900  # Update plant data every 15 minutes
+DATA_UPDATE_INTERVAL = 60  # Update plant data every minute (for testing)
+
 
 @dataclass
 class FytaConfig:
@@ -604,19 +610,71 @@ async def create_plant_sensors() -> None:
         _LOG.info("Configured entity: %s", entity["entity_id"])
 
 
+async def is_network_connected() -> bool:
+    """Check if network is connected by trying to reach FYTA API endpoint."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.head(
+                "https://web.fyta.de", 
+                timeout=5.0
+            )
+            return response.status_code < 500  # Any response below 500 means network is working
+    except Exception:
+        return False
+
+
+async def wait_for_network_connection(max_retries=MAX_STARTUP_RETRIES, delay=RETRY_DELAY_SECONDS) -> bool:
+    """Wait for network connection with retries.
+    
+    Returns True if network becomes available, False if max retries exceeded.
+    """
+    for attempt in range(1, max_retries + 1):
+        _LOG.info("Checking network connectivity (attempt %d/%d)", attempt, max_retries)
+        if await is_network_connected():
+            _LOG.info("Network is connected")
+            return True
+        
+        if attempt < max_retries:
+            _LOG.warning("Network not available, retrying in %d seconds...", delay)
+            await asyncio.sleep(delay)
+    
+    _LOG.error("Network connection not available after %d attempts", max_retries)
+    return False
+
+
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_r2_connect_cmd() -> None:
     """Handle connect event from Remote Two."""
     _LOG.info("Connect command received from Remote Two")
     
+    # If we have no entities but have config, try to set them up now
+    entities = api.available_entities.get_all()
+    if len(entities) == 0 and _fyta_config and _fyta_config.email:
+        _LOG.info("No entities found but configuration exists - attempting to create sensors")
+        
+        if await is_network_connected():
+            try:
+                auth_response = await authenticate_fyta(_fyta_config.email, _fyta_config.password)
+                if auth_response and "access_token" in auth_response:
+                    _LOG.info("Successfully re-authenticated with FYTA API during connect")
+                    # Update tokens in config
+                    _fyta_config.access_token = auth_response.get("access_token")
+                    _fyta_config.refresh_token = auth_response.get("refresh_token")
+                    _fyta_config.expires_in = auth_response.get("expires_in")
+                    save_config(_fyta_config)
+                    
+                    # Create plant sensors
+                    await create_plant_sensors()
+            except Exception as e:
+                _LOG.error("Error during connect authentication: %s", e)
+    
     _LOG.info("Setting device state to CONNECTED")
-
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
     _LOG.info("Device state set to CONNECTED")
 
     entities = api.available_entities.get_all()
     _LOG.info("Found %d registered entities", len(entities))
-    _LOG.info("entities: %s", entities)
+    _LOG.debug("entities: %s", entities)
 
 
 def get_measurement_status_text(status_code) -> str:
@@ -664,6 +722,9 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
                 # If found in available entities, add to configured
                 api.configured_entities.add(entity)
                 _LOG.info("Added entity %s to configured entities", entity_id)
+            else:
+                _LOG.error("Entity %s not found in available entities", entity_id)
+                continue
         
         # Check if entity is a temperature sensor
         if entity and isinstance(entity, PlantTemperatureSensor):
@@ -696,6 +757,62 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
             )
 
 
+async def update_plant_data():
+    """Background task to update plant data periodically."""
+    await asyncio.sleep(60)  # Initial delay to let system stabilize
+    
+    while True:
+        try:
+            if _fyta_config and _fyta_config.access_token:
+                _LOG.info("Updating plant data from FYTA API")
+                
+                if await is_network_connected():
+                    plants = await get_user_plants()
+                    
+                    for plant_id in _plant_sensors:
+                        try:
+                            if plant_id.startswith("fyta-plant-"):
+                                # Extract plant ID from entity ID
+                                pid = plant_id.replace("fyta-plant-", "")
+                                
+                                # Get plant details
+                                plant_details = await get_plant_details(pid)
+                                
+                                if plant_details and "measurements" in plant_details:
+                                    measurements = plant_details.get("measurements", {})
+                                    
+                                    # Update temperature readings
+                                    if "temperature" in measurements and isinstance(measurements["temperature"], dict):
+                                        temp_values = measurements["temperature"].get("values", {})
+                                        
+                                        if temp_values and "current" in temp_values:
+                                            temp_value = temp_values["current"]
+                                            _LOG.debug("Updating temperature to %s for plant %s", temp_value, pid)
+                                            
+                                            # Update configured entity if it exists
+                                            if api.configured_entities.contains(plant_id):
+                                                api.configured_entities.update_attributes(
+                                                    plant_id,
+                                                    {ucapi.sensor.Attributes.VALUE: str(temp_value)}
+                                                )
+                            
+                            # Similarly handle moisture sensors
+                            if plant_id.startswith("fyta-moisture-"):
+                                # Extract plant ID from entity ID
+                                pid = plant_id.replace("fyta-moisture-", "")
+                                
+                                # Handle moisture updates here...
+                                # (similar structure to temperature updates)
+                                
+                        except Exception as e:
+                            _LOG.error("Error updating plant %s: %s", plant_id, e)
+                
+        except Exception as e:
+            _LOG.error("Error in plant data update task: %s", e)
+        
+        await asyncio.sleep(DATA_UPDATE_INTERVAL)
+
+
 async def main():
     """Main entry point for the integration."""
     global _fyta_config
@@ -712,12 +829,39 @@ async def main():
     _fyta_config = load_config()
     if _fyta_config and _fyta_config.email:
         _LOG.info("Loaded FYTA configuration")
+        
+        # Wait for network connectivity before authenticating
+        if await wait_for_network_connection():
+            # Try to re-authenticate with saved credentials
+            try:
+                auth_response = await authenticate_fyta(_fyta_config.email, _fyta_config.password)
+                if auth_response and "access_token" in auth_response:
+                    _LOG.info("Successfully re-authenticated with FYTA API")
+                    # Update tokens in config
+                    _fyta_config.access_token = auth_response.get("access_token")
+                    _fyta_config.refresh_token = auth_response.get("refresh_token")
+                    _fyta_config.expires_in = auth_response.get("expires_in")
+                    save_config(_fyta_config)
+                    
+                    # Create plant sensors after successful authentication
+                    await create_plant_sensors()
+                else:
+                    _LOG.error("Failed to re-authenticate with FYTA API")
+            except Exception as e:
+                _LOG.error("Error during startup authentication: %s", e)
+        else:
+            _LOG.warning("Network not available during startup - will try to reconnect later")
+            # Initialize empty entities list anyway so the integration starts
+            # The on_r2_connect_cmd event handler will retry later
     else:
         _LOG.warning("No configuration found or invalid configuration")
 
     # Initialize the integration with driver.json and setup handler
     _LOG.info("Initializing UC Remote integration API")
     await api.init("driver.json", driver_setup_handler)
+    
+    # Start data update background task
+    # _LOOP.create_task(update_plant_data())
     
     _LOG.info("Integration startup complete")
 

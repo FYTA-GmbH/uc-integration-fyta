@@ -33,12 +33,6 @@ credentials.json
 # Folders to exclude
 /docs/
 /examples/
-/Example/
-/core-simulator/
-test-*.js
-test-*.sh
-fix-*.sh
-debug-*.sh
 
 # OS specific files
 .DS_Store
