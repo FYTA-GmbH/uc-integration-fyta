@@ -13,6 +13,8 @@ This integration connects FYTA plant sensors to Unfolded Circle's Remote Two, al
   <img src="assets/FYTA Integration on UC Temperature.jpeg" width="400" alt="FYTA Temperature Detail" style="max-width: 45%;"/>
 </div>
 
+▶️ [Watch the installation and configuration video](https://youtu.be/pRwuLrct8fc)
+
 ## Features
 
 - Authenticate with FYTA API
