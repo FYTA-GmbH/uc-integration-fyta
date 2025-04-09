@@ -985,10 +985,14 @@ async def main():
     
     # Configure logging
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
+    # Set higher log level for websockets to prevent ping/pong spam
+    logging.getLogger('websockets.server').setLevel(logging.WARNING)
+    logging.getLogger('websockets.protocol').setLevel(logging.WARNING)
+
     _LOG.info("Starting FYTA integration for UC Remote")
     
     # Load existing configuration
