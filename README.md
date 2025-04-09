@@ -88,6 +88,10 @@ To install the pre-compiled integration:
 3. Follow the setup process and enter your FYTA credentials
 4. Select the plant sensors you want to monitor
 
+## Alternative Setup: Using Home Assistant
+
+If you are already using Home Assistant, we highly recommend configuring FYTA through the official [Home Assistant FYTA Integration](https://www.home-assistant.io/integrations/fyta/) (as shown in [this video](https://youtu.be/PeNQQQk6Z5E)). You can then use the excellent Home Assistant integration for Unfolded Circle Remote to bring your FYTA sensors (and your entire smart home) to the remote. The Home Assistant integration offers significantly more parameters and options for FYTA devices, and the UC Remote integration for Home Assistant is generally a very powerful way to control your smart home.
+
 ## Compilation Instructions
 
 The integration can be compiled using Docker:
